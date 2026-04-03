@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
 
-function isAdmin(request: Request) {
+async function isAdmin(request: Request) {
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer mock-jwt-')) return false;
-  const userId = authHeader.replace('Bearer mock-jwt-', '');
-  const user = db.users.find(u => u.id === userId);
-  return user?.role === 'admin';
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const token = authHeader.replace('Bearer ', '');
+  const payload = await verifyToken(token);
+  return payload?.role === 'admin';
 }
 
 export async function GET(request: Request) {
-  if (!isAdmin(request)) {
+  if (!(await isAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
-
-  return NextResponse.json({ users: db.users });
+  const users = await db.getAllUsers();
+  return NextResponse.json({ users });
 }

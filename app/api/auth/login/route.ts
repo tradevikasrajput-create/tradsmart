@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { signToken } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, password } = body;
 
-    const user = db.users.find(u => u.email === email && u.passwordHash === password);
+    const user = await db.getUserByEmail(email);
 
-    if (!user) {
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -16,8 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Account is banned' }, { status: 403 });
     }
 
-    // Mock JWT token
-    const token = `mock-jwt-${user.id}`;
+    const token = await signToken({ id: user.id, role: user.role });
 
     return NextResponse.json({ 
       message: 'Login successful', 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
       user: { id: user.id, email: user.email, role: user.role, plan: user.plan }
     });
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

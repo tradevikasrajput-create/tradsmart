@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
+import { createOrder } from '@/lib/razorpay';
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer mock-jwt-')) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const token = authHeader.replace('Bearer ', '');
+  const payload = await verifyToken(token);
+  if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-  // Mock Razorpay Order Creation
-  const orderId = `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-  
-  return NextResponse.json({
-    id: orderId,
-    amount: 499900, // 4999 INR in paise
-    currency: 'INR',
-  });
+  try {
+    const order = await createOrder(499900); // 4999 INR
+    return NextResponse.json(order);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

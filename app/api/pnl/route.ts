@@ -1,29 +1,30 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer mock-jwt-')) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userId = authHeader.replace('Bearer mock-jwt-', '');
-  const user = db.users.find(u => u.id === userId);
-
-  if (!user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  const token = authHeader.replace('Bearer ', '');
+  const payload = await verifyToken(token);
+  
+  if (!payload) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
   }
 
-  const userTrades = db.trades.filter(t => t.userId === userId);
+  const userTrades = await db.getUserTrades(payload.id as string);
   
-  const totalPnL = userTrades.reduce((sum, trade) => sum + trade.pnl, 0);
-  const openPositions = userTrades.filter(t => t.status === 'OPEN').length;
-  const closedPositions = userTrades.filter(t => t.status === 'CLOSED').length;
+  const totalPnL = userTrades.reduce((sum: number, trade: any) => sum + Number(trade.pnl), 0);
+  const openPositions = userTrades.filter((t: any) => t.status === 'OPEN').length;
+  const closedPositions = userTrades.filter((t: any) => t.status === 'CLOSED').length;
 
   return NextResponse.json({
     totalPnL,
     openPositions,
     closedPositions,
-    trades: userTrades.slice(-10) // Last 10 trades
+    trades: userTrades.slice(0, 10) // Last 10 trades
   });
 }

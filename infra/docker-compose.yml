@@ -9,6 +9,32 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://quant:quant123@postgres:5432/quantdb
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your_super_secret_jwt_key_here
+      - RAZORPAY_KEY_ID=your_razorpay_key_id
+      - RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=quant
+      - POSTGRES_PASSWORD=quant123
+      - POSTGRES_DB=quantdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
     restart: always
 
   nginx:
@@ -20,3 +46,6 @@ services:
     depends_on:
       - app
     restart: always
+
+volumes:
+  pgdata:

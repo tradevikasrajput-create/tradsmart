@@ -16,7 +16,6 @@ function generateRandomSignal(type: 'BULLISH' | 'BEARISH') {
   const momentum = Math.random() * 100;
 
   // Score calculation based on requested weights
-  // OI change weight (30%), Volume spike (25%), Trend confirmation (20%), Sector strength (15%), Momentum indicator (10%)
   const oiScore = Math.min((oiChange / 20) * 100, 100) * 0.30;
   const volScore = Math.min((volumeSpike / 4) * 100, 100) * 0.25;
   const trendScore = trendConf * 0.20;
@@ -56,7 +55,8 @@ function generateRandomSignal(type: 'BULLISH' | 'BEARISH') {
 }
 
 export async function GET(request: Request) {
-  if (db.system.killSwitch) {
+  const killSwitch = await db.getKillSwitch();
+  if (killSwitch) {
     return NextResponse.json({ error: 'System halted by admin kill switch.' }, { status: 503 });
   }
 

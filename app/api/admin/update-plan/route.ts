@@ -1,32 +1,27 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
 
-function isAdmin(request: Request) {
+async function isAdmin(request: Request) {
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer mock-jwt-')) return false;
-  const userId = authHeader.replace('Bearer mock-jwt-', '');
-  const user = db.users.find(u => u.id === userId);
-  return user?.role === 'admin';
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const token = authHeader.replace('Bearer ', '');
+  const payload = await verifyToken(token);
+  return payload?.role === 'admin';
 }
 
 export async function POST(request: Request) {
-  if (!isAdmin(request)) {
+  if (!(await isAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
-
   try {
     const body = await request.json();
     const { userId, plan, isBanned } = body;
-
-    const targetUser = db.users.find(u => u.id === userId);
-    if (!targetUser) {
+    const updatedUser = await db.updateUser(userId, { plan, isBanned });
+    if (!updatedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    if (plan) targetUser.plan = plan;
-    if (typeof isBanned === 'boolean') targetUser.isBanned = isBanned;
-
-    return NextResponse.json({ success: true, user: targetUser });
+    return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
